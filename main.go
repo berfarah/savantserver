@@ -45,9 +45,9 @@ func main() {
 	// // getSceneNames <scene name>,<scene id>,<scene user>
 	r.HandleFunc("/scenes", GetSceneNames).Methods("GET")
 	// // activateScene <scene name> <scene id> <scene user>
-	r.HandleFunc("/scenes/{name}-{id}-{user}/activate", ActivateScene).Methods("POST")
+	r.HandleFunc("/scenes/{name},{id},{user}/activate", ActivateScene).Methods("POST")
 	// // removeScene <scene name> <scene id> <scene user>
-	r.HandleFunc("/scenes/{name}-{id}-{user}", RemoveScene).Methods("DELETE")
+	r.HandleFunc("/scenes/{name},{id},{user}", RemoveScene).Methods("DELETE")
 
 	if err := http.ListenAndServe(":"+port, r); err != nil {
 		panic(err)
