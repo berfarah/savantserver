@@ -33,8 +33,7 @@ func ReadState(w http.ResponseWriter, r *http.Request) {
 
 func WriteState(w http.ResponseWriter, r *http.Request) {
 	var states []State
-	err := json.NewDecoder(r.Body).Decode(&states)
-	if err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&states); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -121,4 +120,53 @@ func ServicesForZone(w http.ResponseWriter, r *http.Request) {
 	}
 
 	serveJson(w, http.StatusOK, services)
+}
+
+type Scene struct {
+	Name string `json:"name"`
+	ID   string `json:"id"`
+	User string `json:"user"`
+}
+
+func GetSceneNames(w http.ResponseWriter, r *http.Request) {
+	sceneRows, err := scliClient.Run("getSceneNames")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	scenes := make([]Scene, 0, len(sceneRows))
+	for _, sceneRow := range sceneRows {
+		if sceneRow == "" {
+			continue
+		}
+		elements := strings.Split(sceneRow, ",")
+		scenes = append(scenes, Scene{
+			Name: elements[0],
+			ID:   elements[1],
+			User: elements[2],
+		})
+	}
+
+	serveJson(w, http.StatusOK, scenes)
+}
+
+func ActivateScene(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	if _, err := scliClient.Run("activateScene", vars["name"], vars["id"], vars["user"]); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusAccepted)
+}
+
+func RemoveScene(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	if _, err := scliClient.Run("removeScene", vars["name"], vars["id"], vars["user"]); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusAccepted)
 }
