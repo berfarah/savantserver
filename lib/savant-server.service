@@ -1,0 +1,23 @@
+[Unit]
+Description=Savant HTTP Server
+ConditionPathExists=/home/RPM
+After=network.target
+
+[Service]
+Type=simple
+User=RPM
+Group=RPM
+
+WorkingDirectory=/home/RPM
+ExecStart=/home/RPM/savantserver
+
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=savantserver
+
+Environment="PATH=/usr/bin:/bin:/usr/sbin:/sbin:./usr/sbin:/sbin:/usr/local/bin:/usr/local/bin/rpm"
+Environment="LD_LIBRARY_PATH=/usr/local/lib"
+Environment="RPM_APPSUPPORT_DIR=/home/RPM/GNUstep/Library/ApplicationSupport/RacePointMedia"
+
+[Install]
+WantedBy=multi-user.target
