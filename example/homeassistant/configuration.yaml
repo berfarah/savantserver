@@ -1,0 +1,6 @@
+rest_command:
+  savant_state_switch:
+    url: http://<smart_host_ip>:12000/states
+    method: POST
+    payload: '[{"name": "userDefined.{{ stateName }}", "value": "{{ value }}"}]'
+    content_type: "application/json"

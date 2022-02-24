@@ -1,0 +1,20 @@
+automation:
+  - alias: Turn on Entryway outdoor lights when Doorbell sees someone
+    description: ''
+    trigger:
+      - platform: device
+        device_id: <id>
+        domain: nest
+        type: camera_motion
+      - platform: device
+        device_id: <id>
+        domain: nest
+        type: camera_person
+    # Could add a condition for sunset/sunrise here
+    condition: []
+    action:
+      - service: rest_command.savant_state_switch
+        data:
+          stateName: entrywayMovementDetected
+    mode: single
+
