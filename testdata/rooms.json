@@ -1,0 +1,142 @@
+[
+    {
+        "roomID": "56A13D70-E1BA-4DA4-B810-FACDF4363537",
+        "configurationID": "DCCB28B8-B4DC-4A06-B202-AC65DD3972A0",
+        "name": "Master Closet",
+        "type": "user",
+        "followDaylight": null
+    },
+    {
+        "roomID": "1150DBCE-AC99-4CA1-99DC-9A50E49CDC11",
+        "configurationID": "DCCB28B8-B4DC-4A06-B202-AC65DD3972A0",
+        "name": "Julian's Room",
+        "type": "user",
+        "followDaylight": null
+    },
+    {
+        "roomID": "38C1DFF5-39FB-4B9B-B15D-8AD70F58F80B",
+        "configurationID": "DCCB28B8-B4DC-4A06-B202-AC65DD3972A0",
+        "name": "Dining",
+        "type": "user",
+        "followDaylight": null
+    },
+    {
+        "roomID": "01DA3139-7981-4B2E-A7E9-0D32CACD57CF",
+        "configurationID": "DCCB28B8-B4DC-4A06-B202-AC65DD3972A0",
+        "name": "Living",
+        "type": "user",
+        "followDaylight": null
+    },
+    {
+        "roomID": "49764176-0580-4548-ADEC-69EF91902C68",
+        "configurationID": "DCCB28B8-B4DC-4A06-B202-AC65DD3972A0",
+        "name": "Exterior",
+        "type": "user",
+        "followDaylight": null
+    },
+    {
+        "roomID": "DB62516F-B110-46F5-927D-4D639313C8EB",
+        "configurationID": "DCCB28B8-B4DC-4A06-B202-AC65DD3972A0",
+        "name": "Evelyn's Room",
+        "type": "user",
+        "followDaylight": null
+    },
+    {
+        "roomID": "B126A525-955C-47D4-B55D-13304FDC3B96",
+        "configurationID": "DCCB28B8-B4DC-4A06-B202-AC65DD3972A0",
+        "name": "Lower Bath",
+        "type": "user",
+        "followDaylight": null
+    },
+    {
+        "roomID": "3294147F-E4F0-4CAA-84BE-71E7C09EA97E",
+        "configurationID": "DCCB28B8-B4DC-4A06-B202-AC65DD3972A0",
+        "name": "Lower Hall",
+        "type": "user",
+        "followDaylight": null
+    },
+    {
+        "roomID": "1FD570AD-6FA3-4E4F-A646-37559FB18399",
+        "configurationID": "DCCB28B8-B4DC-4A06-B202-AC65DD3972A0",
+        "name": "Kitchen",
+        "type": "user",
+        "followDaylight": null
+    },
+    {
+        "roomID": "DFBA6DD1-02C6-4441-9B17-E8CB95763DAF",
+        "configurationID": "DCCB28B8-B4DC-4A06-B202-AC65DD3972A0",
+        "name": "Master",
+        "type": "user",
+        "followDaylight": null
+    },
+    {
+        "roomID": "B543507D-10EE-4E6B-A7EB-56CDDDBD04E7",
+        "configurationID": "DCCB28B8-B4DC-4A06-B202-AC65DD3972A0",
+        "name": "Office",
+        "type": "user",
+        "followDaylight": null
+    },
+    {
+        "roomID": "E8ADB578-4479-48C4-93E1-38E942710AD7",
+        "configurationID": "DCCB28B8-B4DC-4A06-B202-AC65DD3972A0",
+        "name": "Kids' Bath",
+        "type": "user",
+        "followDaylight": null
+    },
+    {
+        "roomID": "5BAA6DAA-582A-4998-AC48-B47F1FC4BAD2",
+        "configurationID": "DCCB28B8-B4DC-4A06-B202-AC65DD3972A0",
+        "name": "Stairs",
+        "type": "user",
+        "followDaylight": null
+    },
+    {
+        "roomID": "6D01C8E3-33B8-4599-B545-1B2B73E0CB7A",
+        "configurationID": "DCCB28B8-B4DC-4A06-B202-AC65DD3972A0",
+        "name": "Unassigned",
+        "type": "user",
+        "followDaylight": null
+    },
+    {
+        "roomID": "CF76095B-9052-4367-8771-770387C1BCE6",
+        "configurationID": "DCCB28B8-B4DC-4A06-B202-AC65DD3972A0",
+        "name": "Upper Hall",
+        "type": "user",
+        "followDaylight": null
+    },
+    {
+        "roomID": "137DB644-1F4A-4FD6-9E3C-E1D67AA63588",
+        "configurationID": "DCCB28B8-B4DC-4A06-B202-AC65DD3972A0",
+        "name": "Guest Bed",
+        "type": "user",
+        "followDaylight": null
+    },
+    {
+        "roomID": "2AE47528-2963-45EB-A3B5-7E2ECF438891",
+        "configurationID": "DCCB28B8-B4DC-4A06-B202-AC65DD3972A0",
+        "name": "Den",
+        "type": "user",
+        "followDaylight": null
+    },
+    {
+        "roomID": "AFE260A7-E417-4861-A5B3-641AE51C1B34",
+        "configurationID": "DCCB28B8-B4DC-4A06-B202-AC65DD3972A0",
+        "name": "Shared Equipment",
+        "type": "shared",
+        "followDaylight": null
+    },
+    {
+        "roomID": "52BD6B98-8063-4689-AEBE-7F4C2671A163",
+        "configurationID": "DCCB28B8-B4DC-4A06-B202-AC65DD3972A0",
+        "name": "Master Bath",
+        "type": "user",
+        "followDaylight": null
+    },
+    {
+        "roomID": "6558C608-E455-4704-BF46-A89C3A17BFCC",
+        "configurationID": "DCCB28B8-B4DC-4A06-B202-AC65DD3972A0",
+        "name": "Pantry",
+        "type": "user",
+        "followDaylight": null
+    }
+]

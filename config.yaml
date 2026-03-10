@@ -1,0 +1,21 @@
+# savantserver configuration
+
+# HTTP server port
+port: 12000
+
+# Savant host connections
+savant:
+  host: "127.0.0.1"       # Savant host IP (use 127.0.0.1 when running on host)
+  rest_port: 3062          # openapi-go REST API port (3062 = localhost, 3060 = network)
+  avc_port: 8480           # avc WebSocket port
+
+# MQTT broker
+mqtt:
+  broker: "tcp://192.168.4.61:1883"
+  username: ""
+  password: ""             # override with MQTT_PASSWORD env var
+  topic_prefix: "savant"
+
+# Home Assistant MQTT Discovery
+homeassistant:
+  discovery_prefix: "homeassistant"
