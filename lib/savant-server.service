@@ -1,5 +1,5 @@
 [Unit]
-Description=Savant HTTP Server
+Description=Savant MQTT Bridge
 ConditionPathExists=/home/RPM
 After=network.target
 
@@ -9,7 +9,7 @@ User=RPM
 Group=RPM
 
 WorkingDirectory=/home/RPM
-ExecStart=/home/RPM/savantserver
+ExecStart=/home/RPM/savantserver -config /home/RPM/config.yaml
 
 StandardOutput=syslog
 StandardError=syslog

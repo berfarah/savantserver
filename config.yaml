@@ -1,8 +1,5 @@
 # savantserver configuration
 
-# HTTP server port
-port: 12000
-
 # Savant host connections
 savant:
   host: "127.0.0.1"       # Savant host IP (use 127.0.0.1 when running on host)
