@@ -29,6 +29,9 @@ type Bridge struct {
 
 	state map[string]*LightState // keyed by UniqueID
 	mu    sync.RWMutex           // protects state map
+
+	daylightState map[string]bool   // keyed by room slug → NaturalLightIsOn
+	daylightRooms map[string]string // room slug → RoomName (for polling state names)
 }
 
 // NewBridge creates a new bridge with the given configuration.
@@ -54,6 +57,9 @@ func (b *Bridge) Start(ctx context.Context) error {
 		// Non-fatal: we can still start with empty state and get updates from avc WS
 		b.logger.Printf("warning: state hydration failed: %v", err)
 	}
+	if err := b.hydrateDaylightState(ctx); err != nil {
+		b.logger.Printf("warning: daylight state hydration failed: %v", err)
+	}
 
 	// 3. Connect MQTT (retry until connected or ctx cancelled)
 	b.mqtt = NewMQTTClient(b.cfg.MQTT, b.cfg.HA.DiscoveryPrefix)
@@ -77,10 +83,14 @@ func (b *Bridge) Start(ctx context.Context) error {
 	if err := b.mqtt.PublishDiscovery(b.entities); err != nil {
 		return fmt.Errorf("mqtt publish discovery: %w", err)
 	}
+	if err := b.mqtt.PublishDaylightDiscovery(b.entities); err != nil {
+		return fmt.Errorf("mqtt publish daylight discovery: %w", err)
+	}
 	if err := b.mqtt.PublishAvailability(true); err != nil {
 		return fmt.Errorf("mqtt publish availability: %w", err)
 	}
 	b.publishAllStates()
+	b.publishAllDaylightStates()
 
 	// 5. Subscribe to MQTT commands
 	if err := b.mqtt.SubscribeCommands(b.handleCommand); err != nil {
@@ -105,6 +115,12 @@ func (b *Bridge) Start(ctx context.Context) error {
 	go func() {
 		defer wg.Done()
 		b.reconnectLoop(ctx)
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		b.daylightPollLoop(ctx)
 	}()
 
 	// Block until shutdown
@@ -167,16 +183,22 @@ func (b *Bridge) discover(ctx context.Context) error {
 	b.state = make(map[string]*LightState, len(entities))
 	b.entityIdx = make(map[string]*LightEntity, len(entities))
 	b.addrIdx = make(map[int]*LightEntity, len(entities))
+	b.daylightState = make(map[string]bool)
+	b.daylightRooms = make(map[string]string)
 
 	for i := range b.entities {
 		e := &b.entities[i]
 		b.state[e.UniqueID] = &LightState{}
 		b.entityIdx[e.RoomSlug+"/"+e.LoadSlug] = e
 		b.addrIdx[e.HexAddr] = e
+
+		if e.FollowDaylight {
+			b.daylightRooms[e.RoomSlug] = e.RoomName
+		}
 	}
 
-	b.logger.Printf("discovered %d rooms, %d loads → %d entities",
-		len(rooms), len(loads), len(entities))
+	b.logger.Printf("discovered %d rooms, %d loads → %d entities (%d daylight rooms)",
+		len(rooms), len(loads), len(entities), len(b.daylightRooms))
 	return nil
 }
 
@@ -493,6 +515,15 @@ func (b *Bridge) sendAVCCommand(avc *AVCClient, entity *LightEntity, cmd LightCo
 			if err := avc.SimulateButtonPress(entity.DaylightToggleAddr); err != nil {
 				b.logger.Printf("avc button press error: %v", err)
 			}
+			// Optimistically mark daylight as active for this room
+			b.mu.Lock()
+			b.daylightState[entity.RoomSlug] = true
+			b.mu.Unlock()
+			if b.mqtt != nil {
+				if err := b.mqtt.PublishDaylightState(entity, true); err != nil {
+					b.logger.Printf("optimistic daylight publish error: %v", err)
+				}
+			}
 		} else {
 			// Non-daylight load: set to max
 			value := fmt.Sprintf("%d%%.0", entity.Max)
@@ -516,4 +547,113 @@ func (b *Bridge) publishAllStates() {
 		}
 	}
 	b.logger.Printf("published state for %d entities", len(b.entities))
+}
+
+// hydrateDaylightState fetches initial NaturalLightIsOn values from the REST API.
+func (b *Bridge) hydrateDaylightState(ctx context.Context) error {
+	if len(b.daylightRooms) == 0 {
+		return nil
+	}
+
+	var stateNames []string
+	for _, roomName := range b.daylightRooms {
+		stateNames = append(stateNames, roomName+".NaturalLightIsOn")
+	}
+
+	states, err := b.api.FetchStates(ctx, stateNames)
+	if err != nil {
+		return err
+	}
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	for slug, roomName := range b.daylightRooms {
+		if val, ok := states[roomName+".NaturalLightIsOn"]; ok {
+			b.daylightState[slug] = val == "1"
+		}
+	}
+
+	b.logger.Printf("hydrated daylight state for %d rooms", len(b.daylightRooms))
+	return nil
+}
+
+// publishAllDaylightStates publishes the current daylight state for all daylight entities.
+func (b *Bridge) publishAllDaylightStates() {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+
+	for i := range b.entities {
+		e := &b.entities[i]
+		if !e.FollowDaylight {
+			continue
+		}
+		active := b.daylightState[e.RoomSlug]
+		if err := b.mqtt.PublishDaylightState(e, active); err != nil {
+			b.logger.Printf("publish daylight state error for %s: %v", e.UniqueID, err)
+		}
+	}
+}
+
+// daylightPollLoop polls the REST API for daylight state changes every 30 seconds.
+func (b *Bridge) daylightPollLoop(ctx context.Context) {
+	if len(b.daylightRooms) == 0 {
+		return
+	}
+
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			b.pollDaylightState(ctx)
+		}
+	}
+}
+
+// pollDaylightState fetches current daylight state and publishes changes.
+func (b *Bridge) pollDaylightState(ctx context.Context) {
+	var stateNames []string
+	for _, roomName := range b.daylightRooms {
+		stateNames = append(stateNames, roomName+".NaturalLightIsOn")
+	}
+
+	states, err := b.api.FetchStates(ctx, stateNames)
+	if err != nil {
+		b.logger.Printf("daylight poll error: %v", err)
+		return
+	}
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	for slug, roomName := range b.daylightRooms {
+		val, ok := states[roomName+".NaturalLightIsOn"]
+		if !ok {
+			continue
+		}
+		active := val == "1"
+		prev := b.daylightState[slug]
+		if active == prev {
+			continue
+		}
+		b.daylightState[slug] = active
+
+		// Publish for all daylight entities in this room
+		if b.mqtt == nil {
+			continue
+		}
+		for i := range b.entities {
+			e := &b.entities[i]
+			if !e.FollowDaylight || e.RoomSlug != slug {
+				continue
+			}
+			if err := b.mqtt.PublishDaylightState(e, active); err != nil {
+				b.logger.Printf("daylight publish error for %s: %v", e.UniqueID, err)
+			}
+		}
+	}
 }

@@ -96,6 +96,23 @@ func (e *LightEntity) DiscoveryTopic(haPrefix string) string {
 	return fmt.Sprintf("%s/light/%s/config", haPrefix, e.UniqueID)
 }
 
+// DaylightStateTopic returns the MQTT state topic for the room's daylight sensor.
+// All entities in the same room share this topic.
+func (e *LightEntity) DaylightStateTopic(prefix string) string {
+	return fmt.Sprintf("%s/%s/daylight/state", prefix, e.RoomSlug)
+}
+
+// DaylightDiscoveryTopic returns the HA MQTT Discovery config topic for this
+// entity's daylight binary sensor.
+func (e *LightEntity) DaylightDiscoveryTopic(haPrefix string) string {
+	return fmt.Sprintf("%s/binary_sensor/%s/config", haPrefix, e.DaylightUniqueID())
+}
+
+// DaylightUniqueID returns the unique ID for this entity's daylight binary sensor.
+func (e *LightEntity) DaylightUniqueID() string {
+	return fmt.Sprintf("savant_daylight_%s_%s", e.RoomSlug, e.LoadSlug)
+}
+
 // LightState represents the current state of a light entity.
 type LightState struct {
 	On         bool

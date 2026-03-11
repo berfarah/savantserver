@@ -153,6 +153,46 @@ func (m *MQTTClient) SubscribeCommands(handler func(entityID string, cmd LightCo
 	return nil
 }
 
+// PublishDaylightDiscovery sends HA MQTT Discovery config for daylight binary
+// sensors. Only entities with FollowDaylight=true get a sensor, attached to the
+// same HA device as their light entity.
+func (m *MQTTClient) PublishDaylightDiscovery(entities []LightEntity) error {
+	count := 0
+	for i := range entities {
+		entity := &entities[i]
+		if !entity.FollowDaylight {
+			continue
+		}
+		payload, err := buildDaylightDiscoveryPayload(entity, m.topicPrefix, m.haPrefix)
+		if err != nil {
+			return fmt.Errorf("building daylight discovery for %s: %w", entity.UniqueID, err)
+		}
+		topic := entity.DaylightDiscoveryTopic(m.haPrefix)
+		token := m.client.Publish(topic, 1, true, payload)
+		token.Wait()
+		if err := token.Error(); err != nil {
+			return fmt.Errorf("publishing daylight discovery for %s: %w", entity.UniqueID, err)
+		}
+		count++
+	}
+	if count > 0 {
+		m.logger.Printf("Published daylight discovery for %d entities", count)
+	}
+	return nil
+}
+
+// PublishDaylightState publishes the daylight mode state for a light entity.
+func (m *MQTTClient) PublishDaylightState(entity *LightEntity, active bool) error {
+	payload := "OFF"
+	if active {
+		payload = "ON"
+	}
+	topic := entity.DaylightStateTopic(m.topicPrefix)
+	token := m.client.Publish(topic, 0, true, payload)
+	token.Wait()
+	return token.Error()
+}
+
 // --- Serialization helpers (exported for testing) ---
 
 // discoveryDevice is the "device" block in an HA discovery payload.
@@ -206,6 +246,42 @@ func buildDiscoveryPayload(entity *LightEntity, topicPrefix string, haPrefix str
 		p.BrightnessScale = 100
 	}
 
+	return json.Marshal(p)
+}
+
+// binarySensorDiscoveryPayload is the HA MQTT Discovery config for a binary sensor.
+type binarySensorDiscoveryPayload struct {
+	Name              string          `json:"name"`
+	UniqueID          string          `json:"unique_id"`
+	ObjectID          string          `json:"object_id"`
+	StateTopic        string          `json:"state_topic"`
+	AvailabilityTopic string          `json:"availability_topic"`
+	PayloadAvailable  string          `json:"payload_available"`
+	PayloadNotAvail   string          `json:"payload_not_available"`
+	Icon              string          `json:"icon"`
+	Device            discoveryDevice `json:"device"`
+}
+
+// buildDaylightDiscoveryPayload generates the HA MQTT Discovery JSON for a
+// daylight binary sensor attached to the same device as the light entity.
+func buildDaylightDiscoveryPayload(entity *LightEntity, topicPrefix string, haPrefix string) ([]byte, error) {
+	p := binarySensorDiscoveryPayload{
+		Name:              "Daylight Mode",
+		UniqueID:          entity.DaylightUniqueID(),
+		ObjectID:          entity.DaylightUniqueID(),
+		StateTopic:        entity.DaylightStateTopic(topicPrefix),
+		AvailabilityTopic: topicPrefix + "/status",
+		PayloadAvailable:  "online",
+		PayloadNotAvail:   "offline",
+		Icon:              "mdi:weather-sunny",
+		Device: discoveryDevice{
+			Identifiers:   []string{entity.UniqueID},
+			Name:          entity.RoomName + " " + entity.Name,
+			Manufacturer:  "Savant",
+			Model:         entity.DeviceModel,
+			SuggestedArea: entity.RoomName,
+		},
+	}
 	return json.Marshal(p)
 }
 

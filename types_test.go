@@ -104,3 +104,21 @@ func TestLightEntityTopics(t *testing.T) {
 		t.Errorf("DiscoveryTopic = %q, want homeassistant/light/savant_load_005_0/config", got)
 	}
 }
+
+func TestLightEntityDaylightTopics(t *testing.T) {
+	e := LightEntity{
+		UniqueID: "savant_load_005_0",
+		RoomSlug: "den",
+		LoadSlug: "lights",
+	}
+
+	if got := e.DaylightUniqueID(); got != "savant_daylight_den_lights" {
+		t.Errorf("DaylightUniqueID = %q, want savant_daylight_den_lights", got)
+	}
+	if got := e.DaylightStateTopic("savant"); got != "savant/den/daylight/state" {
+		t.Errorf("DaylightStateTopic = %q, want savant/den/daylight/state", got)
+	}
+	if got := e.DaylightDiscoveryTopic("homeassistant"); got != "homeassistant/binary_sensor/savant_daylight_den_lights/config" {
+		t.Errorf("DaylightDiscoveryTopic = %q, want homeassistant/binary_sensor/savant_daylight_den_lights/config", got)
+	}
+}
