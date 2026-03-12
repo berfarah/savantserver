@@ -97,6 +97,62 @@ func TestBuildDiscoveryPayload_Switch(t *testing.T) {
 	assertStr(t, got, "command_topic", "savant/master_bath/sconces/light/set")
 }
 
+// --- Daylight discovery payload tests ---
+
+func TestBuildDaylightDiscoveryPayload(t *testing.T) {
+	entity := &LightEntity{
+		UniqueID:    "savant_load_005_0",
+		Name:        "Lights",
+		RoomName:    "Den",
+		RoomSlug:    "den",
+		LoadSlug:    "lights",
+		DeviceModel: "ECHO Adaptive phase",
+	}
+
+	data, err := buildDaylightDiscoveryPayload(entity, "savant", "homeassistant")
+	if err != nil {
+		t.Fatalf("buildDaylightDiscoveryPayload() error: %v", err)
+	}
+
+	var got map[string]interface{}
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatalf("JSON unmarshal error: %v", err)
+	}
+
+	// Check fields
+	assertStr(t, got, "name", "Daylight Mode")
+	assertStr(t, got, "unique_id", "savant_daylight_den_lights")
+	assertStr(t, got, "object_id", "savant_daylight_den_lights")
+	assertStr(t, got, "state_topic", "savant/den/daylight/state")
+	assertStr(t, got, "availability_topic", "savant/status")
+	assertStr(t, got, "payload_available", "online")
+	assertStr(t, got, "payload_not_available", "offline")
+	assertStr(t, got, "icon", "mdi:weather-sunny")
+
+	// No schema or command_topic (read-only sensor)
+	if _, ok := got["schema"]; ok {
+		t.Error("schema should be absent for binary sensor")
+	}
+	if _, ok := got["command_topic"]; ok {
+		t.Error("command_topic should be absent for binary sensor")
+	}
+
+	// Check device block — should match the light entity's device
+	dev, ok := got["device"].(map[string]interface{})
+	if !ok {
+		t.Fatal("expected device block to be an object")
+	}
+	assertStr(t, dev, "name", "Den Lights")
+	assertStr(t, dev, "manufacturer", "Savant")
+	assertStr(t, dev, "model", "ECHO Adaptive phase")
+	assertStr(t, dev, "suggested_area", "Den")
+
+	ids, ok := dev["identifiers"].([]interface{})
+	if !ok || len(ids) != 1 || ids[0] != "savant_load_005_0" {
+		t.Errorf("expected identifiers: [savant_load_005_0], got %v", dev["identifiers"])
+	}
+}
+
 // --- State payload tests ---
 
 func TestBuildStatePayload_DimmableOn(t *testing.T) {

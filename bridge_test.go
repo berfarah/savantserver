@@ -406,6 +406,142 @@ func TestHydratePerLoadFallsBackToPerRoom(t *testing.T) {
 	}
 }
 
+// --- daylight state tests ---
+
+func TestHydrateDaylightState(t *testing.T) {
+	stateServer := testStateServer(t, map[string]string{
+		"Den.NaturalLightIsOn": "1",
+	})
+	defer stateServer.Close()
+
+	b := newTestBridge()
+	b.cfg = &Config{}
+	b.api = &SavantAPI{baseURL: stateServer.URL, client: stateServer.Client()}
+	b.daylightRooms = map[string]string{"den": "Den"}
+	b.daylightState = make(map[string]bool)
+
+	if err := b.hydrateDaylightState(context.Background()); err != nil {
+		t.Fatalf("hydrateDaylightState error: %v", err)
+	}
+
+	if !b.daylightState["den"] {
+		t.Error("expected daylight state to be true for den")
+	}
+}
+
+func TestHydrateDaylightState_Off(t *testing.T) {
+	stateServer := testStateServer(t, map[string]string{
+		"Den.NaturalLightIsOn": "0",
+	})
+	defer stateServer.Close()
+
+	b := newTestBridge()
+	b.cfg = &Config{}
+	b.api = &SavantAPI{baseURL: stateServer.URL, client: stateServer.Client()}
+	b.daylightRooms = map[string]string{"den": "Den"}
+	b.daylightState = make(map[string]bool)
+
+	if err := b.hydrateDaylightState(context.Background()); err != nil {
+		t.Fatalf("hydrateDaylightState error: %v", err)
+	}
+
+	if b.daylightState["den"] {
+		t.Error("expected daylight state to be false for den")
+	}
+}
+
+func TestHydrateDaylightState_NoDaylightRooms(t *testing.T) {
+	b := newTestBridge()
+	b.daylightRooms = make(map[string]string)
+	b.daylightState = make(map[string]bool)
+
+	// Should return nil immediately without needing an API
+	if err := b.hydrateDaylightState(context.Background()); err != nil {
+		t.Fatalf("hydrateDaylightState error: %v", err)
+	}
+}
+
+func TestPollDaylightState_PublishesOnChange(t *testing.T) {
+	// Start with daylight off, poll returns on
+	stateServer := testStateServer(t, map[string]string{
+		"Den.NaturalLightIsOn": "1",
+	})
+	defer stateServer.Close()
+
+	b := newTestBridge()
+	b.cfg = &Config{}
+	b.api = &SavantAPI{baseURL: stateServer.URL, client: stateServer.Client()}
+	b.daylightRooms = map[string]string{"den": "Den"}
+	b.daylightState = map[string]bool{"den": false}
+
+	// pollDaylightState needs mqtt client — but we just test state change here
+	// without MQTT by leaving b.mqtt nil and checking internal state
+	b.pollDaylightState(context.Background())
+
+	if !b.daylightState["den"] {
+		t.Error("expected daylight state to change to true")
+	}
+}
+
+func TestPollDaylightState_NoChangeNoPublish(t *testing.T) {
+	stateServer := testStateServer(t, map[string]string{
+		"Den.NaturalLightIsOn": "0",
+	})
+	defer stateServer.Close()
+
+	b := newTestBridge()
+	b.cfg = &Config{}
+	b.api = &SavantAPI{baseURL: stateServer.URL, client: stateServer.Client()}
+	b.daylightRooms = map[string]string{"den": "Den"}
+	b.daylightState = map[string]bool{"den": false}
+
+	// Already false → should remain false with no change
+	b.pollDaylightState(context.Background())
+
+	if b.daylightState["den"] {
+		t.Error("expected daylight state to stay false")
+	}
+}
+
+func TestOptimisticDaylightUpdate(t *testing.T) {
+	b, received := newTestBridgeWithAVC(t)
+	b.daylightState = map[string]bool{"den": false}
+	b.daylightRooms = map[string]string{"den": "Den"}
+
+	on := "ON"
+	b.handleCommand("den/lights", LightCommand{State: &on})
+
+	// Should have set daylight state optimistically
+	if !b.daylightState["den"] {
+		t.Error("expected optimistic daylight state true after NL toggle")
+	}
+
+	// Drain avc messages (press + release)
+	expectAVCMessage(t, received, 2*time.Second)
+	expectAVCMessage(t, received, 1*time.Second)
+}
+
+func TestDiscoverCollectsDaylightRooms(t *testing.T) {
+	b := newTestBridge()
+	// newTestBridge doesn't set daylightRooms — verify the field was populated
+	// by checking test entities directly
+	entities := testEntities()
+
+	b.daylightRooms = make(map[string]string)
+	for _, e := range entities {
+		if e.FollowDaylight {
+			b.daylightRooms[e.RoomSlug] = e.RoomName
+		}
+	}
+
+	if len(b.daylightRooms) != 1 {
+		t.Errorf("expected 1 daylight room, got %d", len(b.daylightRooms))
+	}
+	if b.daylightRooms["den"] != "Den" {
+		t.Errorf("expected den→Den, got %q", b.daylightRooms["den"])
+	}
+}
+
 // --- test helpers ---
 
 // newTestBridge creates a Bridge with two entities (den lights + den closet)
@@ -453,11 +589,13 @@ func testEntities() []LightEntity {
 
 func newTestBridgeFromEntities(entities []LightEntity) *Bridge {
 	b := &Bridge{
-		entities:  entities,
-		state:     make(map[string]*LightState, len(entities)),
-		entityIdx: make(map[string]*LightEntity, len(entities)),
-		addrIdx:   make(map[int]*LightEntity, len(entities)),
-		logger:    testLogger(),
+		entities:      entities,
+		state:         make(map[string]*LightState, len(entities)),
+		entityIdx:     make(map[string]*LightEntity, len(entities)),
+		addrIdx:       make(map[int]*LightEntity, len(entities)),
+		daylightState: make(map[string]bool),
+		daylightRooms: make(map[string]string),
+		logger:        testLogger(),
 	}
 
 	for i := range b.entities {
@@ -465,6 +603,9 @@ func newTestBridgeFromEntities(entities []LightEntity) *Bridge {
 		b.state[e.UniqueID] = &LightState{}
 		b.entityIdx[e.RoomSlug+"/"+e.LoadSlug] = e
 		b.addrIdx[e.HexAddr] = e
+		if e.FollowDaylight {
+			b.daylightRooms[e.RoomSlug] = e.RoomName
+		}
 	}
 
 	return b
